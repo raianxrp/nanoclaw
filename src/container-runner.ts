@@ -4,9 +4,14 @@
  */
 import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import {
+  ANTHROPIC_API_KEY,
+  ANTHROPIC_AUTH_TOKEN,
+  ANTHROPIC_BASE_URL,
+  ANTHROPIC_MODEL,
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
@@ -233,6 +238,32 @@ async function buildContainerArgs(
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
 
+  // Pass custom base URL for non-Anthropic endpoints (e.g. OpenRouter)
+  if (ANTHROPIC_BASE_URL)
+    args.push('-e', `ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}`);
+
+  if (ANTHROPIC_AUTH_TOKEN)
+    args.push('-e', `ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}`);
+    
+  if (ANTHROPIC_API_KEY)
+    args.push('-e', `ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}`);
+
+  // Pass model override for non-Anthropic providers
+  if (ANTHROPIC_MODEL) args.push('-e', `CLAUDE_CODE_MODEL=${ANTHROPIC_MODEL}`);
+
+  // Workaround: Docker can create bind-mounted files as directories if they don't exist.
+  // Clean them up before OneCLI tries to write them as files.
+  for (const certFile of ['onecli-proxy-ca.pem', 'onecli-combined-ca.pem']) {
+    try {
+      const p = path.join(os.tmpdir(), certFile);
+      if (fs.statSync(p).isDirectory()) {
+        fs.rmdirSync(p);
+      }
+    } catch {
+      // Ignored
+    }
+  }
+
   // OneCLI gateway handles credential injection — containers never see real secrets.
   // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
   const onecliApplied = await onecli.applyContainerConfig(args, {
@@ -241,10 +272,15 @@ async function buildContainerArgs(
   });
   if (onecliApplied) {
     logger.info({ containerName }, 'OneCLI gateway config applied');
-  } else {
+  } else if (!ANTHROPIC_AUTH_TOKEN && !ANTHROPIC_API_KEY) {
     logger.warn(
       { containerName },
       'OneCLI gateway not reachable — container will have no credentials',
+    );
+  } else {
+    logger.debug(
+      { containerName },
+      'OneCLI gateway not reachable — using explicitly provided credentials',
     );
   }
 

@@ -172,8 +172,9 @@ We don't want configuration sprawl. Every user should customize NanoClaw so that
 Yes. NanoClaw supports any Claude API-compatible model endpoint. Set these environment variables in your `.env` file:
 
 ```bash
-ANTHROPIC_BASE_URL=https://your-api-endpoint.com
+ANTHROPIC_BASE_URL=https://openrouter.ai/api/v1
 ANTHROPIC_AUTH_TOKEN=your-token-here
+ANTHROPIC_MODEL=qwen/qwen3.6-plus-preview:free # Example for OpenRouter
 ```
 
 This allows you to use:

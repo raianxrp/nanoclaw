@@ -625,6 +625,12 @@ async function main(): Promise<void> {
   // No real secrets exist in the container environment.
   const sdkEnv: Record<string, string | undefined> = { ...process.env };
 
+  // Propagate CLAUDE_CODE_MODEL from container env into the SDK
+  // so the SDK uses the OpenRouter model selected in the host's .env
+  if (process.env.CLAUDE_CODE_MODEL) {
+    sdkEnv.CLAUDE_CODE_MODEL = process.env.CLAUDE_CODE_MODEL;
+  }
+
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
 
